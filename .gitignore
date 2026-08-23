@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+app_log.txt
+app_log2.txt
+models/*.task

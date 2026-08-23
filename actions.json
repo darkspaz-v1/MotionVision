@@ -1,0 +1,41 @@
+{
+  "next": {
+    "type": "media",
+    "value": "nexttrack"
+  },
+  "increase vol": {
+    "type": "media",
+    "value": "volumeup"
+  },
+  "last": {
+    "type": "media",
+    "value": "prevtrack"
+  },
+  "decrease vol": {
+    "type": "media",
+    "value": "volumedown"
+  },
+  "hand mouse": {
+    "type": "mouse_toggle"
+  },
+  "hidev2": {
+    "type": "keystroke",
+    "value": "win+d"
+  },
+  "claude": {
+    "type": "keystroke",
+    "value": "ctrl+alt+c"
+  },
+  "pause/play": {
+    "type": "media",
+    "value": "playpause"
+  },
+  "spotify": {
+    "type": "launch",
+    "value": "Spotify"
+  },
+  "google": {
+    "type": "launch",
+    "value": "Google Chrome"
+  }
+}
