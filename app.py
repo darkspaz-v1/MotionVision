@@ -1,4 +1,4 @@
-"""Gesture Studio: camera preview + hand-gesture editor.
+"""MotionVision: camera preview + hand-gesture editor.
 
 Shows a live webcam feed with hand-landmark overlay, lets you record named
 hand-pose gestures (averaged over a short capture window for stability),
@@ -62,7 +62,7 @@ BRACKET_LEN = 22      # px, corner-bracket arm length
 class GestureApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Gesture Studio")
+        self.root.title("MotionVision")
         self.root.geometry("1040x680")
         self.root.minsize(860, 560)
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
