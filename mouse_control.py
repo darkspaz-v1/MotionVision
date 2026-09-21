@@ -16,9 +16,12 @@ Holding/dragging requires a *second* pinch that starts within
 DOUBLE_TAP_WINDOW of the first one's release; that second pinch presses the
 button down for real and holds it until released.
 """
+import logging
 import math
 import sys
 import time
+
+log = logging.getLogger("motionvision.mouse_control")
 
 if sys.platform == "win32":
     # Defensive copy of the same call app.py makes at process startup (before
@@ -28,11 +31,12 @@ if sys.platform == "win32":
     import ctypes
     try:
         ctypes.windll.shcore.SetProcessDpiAwareness(2)
-    except Exception:
+    except (AttributeError, OSError) as exc:
+        log.debug("SetProcessDpiAwareness failed: %s", exc)  # older Windows or already set
         try:
             ctypes.windll.user32.SetProcessDPIAware()
-        except Exception:
-            pass
+        except (AttributeError, OSError) as exc2:
+            log.debug("SetProcessDPIAware failed: %s", exc2)  # best effort; coordinates may be scaled
 
 import pyautogui
 
@@ -141,8 +145,8 @@ def _screen_bounds():
             width, height = gm(SM_CXVIRTUALSCREEN), gm(SM_CYVIRTUALSCREEN)
             if width > 0 and height > 0:
                 return left, top, width, height
-        except Exception:
-            pass
+        except (AttributeError, OSError) as exc:
+            log.debug("Virtual-screen query failed, using primary monitor: %s", exc)
     w, h = pyautogui.size()
     return 0, 0, w, h
 
@@ -281,8 +285,9 @@ class MouseController:
         if self._holding and self._pinched_side:
             try:
                 pyautogui.mouseUp(button=self._pinched_side)
-            except Exception:
-                pass
+            except (pyautogui.PyAutoGUIException, OSError) as exc:
+                # Best effort: this runs on hand-loss/shutdown, so it must not raise.
+                log.warning("mouseUp(%s) failed while releasing: %s", self._pinched_side, exc)
         self._pinched_side = None
         self._holding = False
         self._await_side = None
