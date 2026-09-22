@@ -8,6 +8,11 @@ up to any actions.
 """
 import sys
 
+import applog
+
+applog.setup_logging()
+log = applog.get_logger("app")
+
 if sys.platform == "win32":
     # Must run before ANY module in this process imports pyautogui (actions.py
     # does, below) -- otherwise Windows may hand back DPI-virtualized (scaled)
@@ -17,18 +22,21 @@ if sys.platform == "win32":
     import ctypes
     try:
         ctypes.windll.shcore.SetProcessDpiAwareness(2)  # per-monitor v2
-    except Exception:
+    except (AttributeError, OSError) as exc:
+        # Older Windows or DPI awareness already set for this process: fall back to the legacy call.
+        log.debug("SetProcessDpiAwareness failed: %s", exc)
         try:
             ctypes.windll.user32.SetProcessDPIAware()
-        except Exception:
-            pass
+        except (AttributeError, OSError) as exc2:
+            log.debug("SetProcessDPIAware failed: %s", exc2)  # best effort; coordinates may be scaled
 
+import subprocess
 import time
-import traceback
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 
 import cv2
+import pyautogui
 from PIL import Image, ImageTk
 
 import actions as astore
@@ -526,11 +534,25 @@ class GestureApp:
             # Never let a single bad frame silently kill the tick loop --
             # that would freeze the camera feed, tracking, AND the cursor
             # (if a drag was in progress, the button could stay stuck down).
-            traceback.print_exc()
+            self._log_tick_error()
             if self.mouse_mode:
                 self.mouse_controller.release_all()
         finally:
             self.root.after(20, self._tick)
+
+    def _log_tick_error(self):
+        """Log a tick-loop failure. The loop runs every 20 ms, so a persistent error would flood
+        the log: log the full traceback for each new kind of error, then only a running count."""
+        exc_type, exc, _ = sys.exc_info()
+        signature = (exc_type, str(exc))
+        if signature == getattr(self, "_last_tick_error", None):
+            self._tick_error_repeats = getattr(self, "_tick_error_repeats", 0) + 1
+            if self._tick_error_repeats % 500 == 0:
+                log.error("Tick error repeated %d more times: %s", self._tick_error_repeats, exc)
+            return
+        self._last_tick_error = signature
+        self._tick_error_repeats = 0
+        log.exception("Error in tick loop (frame skipped, loop continues)")
 
     def _handle_recording_state(self, frame, current_norm):
         if self.record_state == "countdown":
@@ -655,7 +677,9 @@ class GestureApp:
             else:
                 astore.run_action(action)
                 self.flash_msg = f'Ran: {gesture_name} → {astore.describe(action)}'
-        except Exception as e:
+        except (pyautogui.PyAutoGUIException, subprocess.SubprocessError, OSError,
+                ValueError, TypeError, AttributeError) as e:
+            log.warning("Action failed for %r: %s", gesture_name, e, exc_info=True)
             self.flash_msg = f'Action failed for "{gesture_name}": {e}'
         self.flash_until = time.time() + 1.5
 

@@ -1,0 +1,14 @@
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "W", "B"]
+ignore = [
+    "E501",  # long lines are the existing style (UI layout and comments); not reflowing
+    "B905",  # zip() over equal-length sequences; strict= would add noise
+]
+
+[lint.per-file-ignores]
+# The Windows DPI-awareness call must run before pyautogui is imported, so these imports
+# intentionally come after code (see the comments at the top of each file).
+"app.py" = ["E402"]
+"mouse_control.py" = ["E402"]

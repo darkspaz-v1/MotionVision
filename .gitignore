@@ -5,3 +5,4 @@ __pycache__/
 app_log.txt
 app_log2.txt
 models/*.task
+logs/
