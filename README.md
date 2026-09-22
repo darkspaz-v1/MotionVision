@@ -4,11 +4,11 @@
 
 Control your Windows mouse with your webcam: move your hand to move the cursor, pinch to click, double-tap and hold to drag, and bind recorded hand poses to keystrokes, media keys, or app launches.
 
-[Quick start](#quick-start) · [What it does](#what-it-does) · [How it works](#how-it-works) · [Tests and CI](#proof-tests-and-ci) · [Known limitations](#known-limitations) · [MIT license](LICENSE)
+[Quick start](#quick-start) · [What it does](#what-it-does) · [How it works](#how-it-works) · [Demo](#demo) · [Tests and CI](#proof-tests-and-ci) · [Known limitations](#known-limitations) · [MIT license](LICENSE)
 
 ![Animated architecture diagram, not a screenshot or a recording: webcam frames go to MediaPipe hand tracking, which feeds both gesture matching (then actions such as keystrokes, media keys and app launches) and mouse control (cursor move, click, drag).](docs/media/pipeline.gif)
 
-*The animation above is a drawn diagram of the code layout. A real screen recording of hand-to-cursor control is still to come; it needs a live webcam session, so it is not in this repo yet.*
+*The animation above is a drawn diagram of the code layout, not footage of the app running. See [Demo](#demo) below.*
 
 ## Quick start
 
@@ -63,6 +63,20 @@ flowchart LR
     UI -.records.-> G
 ```
 
+## Demo
+
+**There is no real gesture-control footage in this repo yet.** The GIF at the top of this README is a
+drawn architecture diagram (webcam → tracking → gesture matching/mouse control → actions), not a
+screen recording. It illustrates the pipeline; it does not show the app being used.
+
+A real screen recording of hand-to-cursor control — cursor tracking a hand, pinch-click, drag, and a
+bound gesture firing an action — is planned but not yet captured. It needs a live webcam session on a
+machine without Windows Application Control blocking MediaPipe (see [Known limitations](#known-limitations)),
+so it has to be recorded by hand rather than generated. A shot list for that recording already exists
+from an earlier review pass; it is not reproduced here to avoid drift between two copies — use that
+existing list when capturing the footage, then drop the clip into `docs/media/` and swap it in as the
+hero above the architecture diagram (kept, clearly labelled, as a secondary illustration).
+
 ## Problems that were actually hard
 
 - **Timestamps must strictly increase.** MediaPipe's `detect_for_video()` raises if two frames carry
@@ -82,15 +96,29 @@ venv\Scripts\python.exe -m pytest
 ```
 
 **29 tests** across `test_mouse_control.py` (20), `test_gestures.py` (7) and `test_hand_tracker.py`
-(2, exercising the real HandLandmarker rather than a mock). The two HandLandmarker tests skip
-themselves, with the reason shown by `pytest -rs`, when the model file is missing or MediaPipe cannot be
-loaded. Set `MOTIONVISION_SKIP_TRACKER_TESTS=1` to skip them explicitly (CI does this).
+(2, exercising the real HandLandmarker rather than a mock).
 
-The CI badge above points at `.github/workflows/ci.yml`, which runs `ruff check .` and `pytest` on Windows with Python 3.12 and 3.13.
+**What actually runs where — this is not "29/29 everywhere":**
+
+| Where | Tests that run | Tests that skip | Why |
+|---|---|---|---|
+| **GitHub Actions CI** (`.github/workflows/ci.yml`, Windows, Python 3.12 & 3.13) | 27 | 2 (`test_hand_tracker.py`) | CI runners have no webcam and no model file; `MOTIONVISION_SKIP_TRACKER_TESTS=1` is set explicitly so the two real-HandLandmarker tests skip instead of erroring. |
+| **This development machine, as verified for this README** | 27 | 2 (`test_hand_tracker.py`) | Windows Application Control (WDAC / Smart App Control) blocks MediaPipe's native DLL here — see below — so the same two tests skip for a different, environment-specific reason, with the reason printed by `pytest -rs`. |
+| **A machine with the model file present and no WDAC block** | 29 | 0 | The full suite, including real hand-tracking, runs and passes. |
+
+In short: **27 tests pass in every environment**; the remaining 2 need both the downloaded model file
+and a machine where MediaPipe's native library is allowed to load, and skip themselves cleanly
+(never silently pass or fail) when either is missing. Run `pytest -rs` yourself to see exactly which
+tests skipped and why on your machine. Set `MOTIONVISION_SKIP_TRACKER_TESTS=1` to skip them explicitly
+(CI does this).
 
 ## Known limitations
 
-- **Windows only, webcam required.** There is no recorded demo yet, and the CI machines have no camera, so the live tracking path is only exercised on a real machine.
+- **Windows only, webcam required.** There is no recorded demo yet (see [Demo](#demo)), and the CI machines have no camera, so the live tracking path is only exercised on a real machine.
+- **Sensitive to webcam quality and lighting.** MediaPipe's hand landmarks get noisier and can drop
+  out under low light, backlighting, or a low-resolution/low-framerate webcam. Point the camera at a
+  well-lit hand against a plain background for the most stable tracking; expect more jitter and missed
+  detections outside that.
 - **Multi-monitor is opt-in.** It is behind the `MULTI_MONITOR` flag in `mouse_control.py` and off by default (see above).
 - **Windows Application Control can block tracking.**
 
